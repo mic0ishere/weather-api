@@ -1,25 +1,32 @@
 const WEATHER_API_URL = "https://devmgramapi.meteo.pl/meteorograms";
 
 const getWeather = async (latitude, longitude, { model = "um4_60" }) => {
-  console.log(
-    "getWeather",
-    latitude,
-    longitude,
-    model,
-    JSON.stringify({
-      date: Math.floor(Date.now() / 1000),
-      point: { lat: latitude.toString(), lon: longitude.toString() },
-    })
-  );
+  const availableModels = await getAvailableModels();
+  if (!availableModels[model.toLowerCase()]) {
+    throw new Error(`Model ${model} is not available`);
+  }
+
+  const dates = availableModels[model.toLowerCase()];
   const response = await fetch(`${WEATHER_API_URL}/${model}`, {
-    method: "POST",
     body: JSON.stringify({
-      date: Math.floor(Date.now() / 1000),
+      date: dates[dates.length - 1],
       point: { lat: latitude.toString(), lon: longitude.toString() },
     }),
+    method: "POST",
   });
 
-  return response.text();
+  const weather = await response.text();
+  try {
+    return JSON.parse(weather);
+  } catch (error) {
+    throw new Error("Could not parse weather data: " + response.statusText);
+  }
 };
 
-module.exports = { getWeather };
+const getAvailableModels = async () => {
+  return await fetch(`${WEATHER_API_URL}/available`, {
+    method: "POST",
+  }).then((response) => response.json());
+};
+
+module.exports = { getWeather, getAvailableModels };
